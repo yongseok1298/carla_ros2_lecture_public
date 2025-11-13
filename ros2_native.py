@@ -12,6 +12,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image as RosImage
 from cv_bridge import CvBridge
+from geometry_msgs.msg import Twist
 
 
 class DepthColorizer:
@@ -155,8 +156,8 @@ def main(args):
         settings.fixed_delta_seconds = 0.05
         world.apply_settings(settings)
 
-        traffic_manager = client.get_trafficmanager()
-        traffic_manager.set_synchronous_mode(True)
+        # traffic_manager = client.get_trafficmanager()
+        # traffic_manager.set_synchronous_mode(True)
 
         with open(args.file) as f:
             config = json.load(f)
@@ -171,7 +172,45 @@ def main(args):
         )
 
         _ = world.tick()
-        vehicle.set_autopilot(True)
+        # vehicle.set_autopilot(False)
+
+        MAX_STEER_DEG = 35.0    # Model 3 Tire Angle 
+        KP_THR        = 0.25    # P acceleration gain
+        KP_BRK        = 0.35    # P brake gain
+
+        def _speed_mps(vec):
+            return float((vec.x**2 + vec.y**2 + vec.z**2) ** 0.5)
+
+        def _clamp(v, lo, hi):
+            return hi if v > hi else lo if v < lo else v
+
+        # === Twist(linear.x[m/s], angular.z[deg], linear.y[0..1]) -> VehicleControl ===
+        def _on_cmd(msg: Twist):
+            v_meas = _speed_mps(vehicle.get_velocity()) # current velocity [m/s]
+
+            v_ref_mps   = float(msg.linear.x)     # target speed [m/s]
+            steer_deg   = float(msg.angular.z)    # [deg] (left: -, right: +)
+            brake_manual= _clamp(float(msg.linear.y), 0.0, 1.0)  # brake (optional)
+
+            steer_norm = _clamp(steer_deg / MAX_STEER_DEG, -1.0, 1.0)
+
+            err = v_ref_mps - v_meas
+            thr_cmd = _clamp(KP_THR * max(err,  0.0), 0.0, 1.0)
+            brk_cmd = _clamp(KP_BRK * max(-err, 0.0), 0.0, 1.0)
+
+            if brake_manual > 0.0:
+                brk_cmd = brake_manual
+                thr_cmd = 0.0
+
+            vehicle.apply_control(carla.VehicleControl(
+                throttle=thr_cmd,
+                brake=brk_cmd,
+                steer=steer_norm
+            ))
+
+        node.create_subscription(Twist, '/carla/hero/cmd_vel', _on_cmd, 10)
+        node.get_logger().info("[control] Subscribed /carla/hero/cmd_vel (x=thr, y=brk, z=steer)")
+
 
         logging.info("Running...")
 
