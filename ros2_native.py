@@ -146,7 +146,7 @@ def main(args):
 
     try:
         client = carla.Client(args.host, args.port)
-        client.set_timeout(10.0)
+        client.set_timeout(20.0)
 
         world = client.get_world()
 
@@ -172,7 +172,7 @@ def main(args):
         )
 
         _ = world.tick()
-        # vehicle.set_autopilot(False)
+        vehicle.set_autopilot(False)
 
         MAX_STEER_DEG = 35.0    # Model 3 Tire Angle 
         KP_THR        = 0.25    # P acceleration gain

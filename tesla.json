@@ -3,7 +3,7 @@
   "id": "hero",
   "sensors": [
     { "type": "sensor.camera.rgb", "id": "camera_front",
-      "spawn_point": {"x":1.6,"y":0.0,"z":1.6, "roll":0.0, "pitch":0.0,"yaw":0.0},
+      "spawn_point": {"x":1.55,"y":0.2,"z":3.2, "roll":0.0, "pitch":30.0,"yaw":0.0},
       "attributes": {"image_size_x":"640","image_size_y":"480","fov":"90","sensor_tick":"0.05"}
     },
     { "type": "sensor.camera.semantic_segmentation", "id": "camera_semantic_segmentation",
